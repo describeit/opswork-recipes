@@ -1,0 +1,189 @@
+upstream puma_server {
+  server unix:/home/<%= node['user']['name'] %>/<%= node['app'] %>/shared/tmp/sockets/puma_<%= node['app'] %>.sock fail_timeout=0;
+}
+
+# upload_progress proxied 1m;
+
+# handle the proper domains
+#
+
+server {
+  listen 80;
+
+  root /home/<%= node['user']['name'] %>/<%= node['app'] %>/current/public;
+
+  location ^~ /assets/ {
+    gzip_static on;
+    expires max;
+    add_header Cache-Control public;
+  }
+
+  location /health_check {
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header Host $http_host;
+    proxy_redirect off;
+    proxy_next_upstream error;
+    proxy_pass http://puma_server;
+    break;
+  }
+
+  try_files $uri/index.html $uri @puma_server;
+  location @puma_server {
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header Host $http_host;
+    proxy_redirect off;
+    proxy_next_upstream error;
+
+
+    # 2) Any request that did not originally come in to the ELB
+    #    over HTTPS gets redirected.
+    if ($http_x_forwarded_proto != "https") {
+      rewrite ^(.*)$ https://$server_name$1 permanent;
+    }
+
+    proxy_pass http://puma_server;
+
+    # track uploads in zone
+    # track_uploads proxied 30s;
+
+    # limit_req zone=one;
+    access_log /home/<%= node['user']['name'] %>/<%= node['app'] %>/shared/log/nginx.access.log;
+    error_log /home/<%= node['user']['name'] %>/<%= node['app'] %>/shared/log/nginx.error.log;
+  }
+
+  # location ^~ /progress {
+  #   upload_progress_json_output;
+  #   report_uploads proxied;
+  # }
+
+  client_max_body_size 4G;
+  keepalive_timeout 10;
+
+  error_page 500 502 504 /500.html;
+  error_page 503 @503;
+
+  location ~ \.(aspx|php|jsp|cgi|assets)$ {
+    return 410;
+  }
+
+  location = /50x.html {
+    root html;
+  }
+
+  location = /404.html {
+    root html;
+  }
+
+  location @503 {
+    error_page 405 = /system/maintenance.html;
+    if (-f $document_root/system/maintenance.html) {
+      rewrite ^(.*)$ /system/maintenance.html break;
+    }
+    rewrite ^(.*)$ /503.html break;
+  }
+
+  if ($request_method !~ ^(GET|HEAD|PUT|PATCH|POST|DELETE|OPTIONS)$ ){
+    return 405;
+  }
+
+  if (-f $document_root/system/maintenance.html) {
+    return 503;
+  }
+
+  location ~ \.(php|html)$ {
+    return 405;
+  }
+}
+
+
+server {
+  listen 443;
+
+  ssl on;
+  ssl_certificate /etc/ssl/<%= node['ssl']['cert'] %>.chained.crt;
+  ssl_certificate_key /etc/ssl/<%= node['ssl']['cert'] %>.key;
+  ssl_session_cache shared:SSL:10m;
+  ssl_session_timeout 10m;
+
+  root /home/<%= node['user']['name'] %>/<%= node['app'] %>/current/public;
+
+  location ^~ /assets/ {
+    gzip_static on;
+    expires max;
+    add_header Cache-Control public;
+  }
+
+  location /health_check {
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header Host $http_host;
+    proxy_redirect off;
+    proxy_next_upstream error;
+    proxy_pass http://puma_server;
+    break;
+  }
+
+  try_files $uri/index.html $uri @puma_server;
+  location @puma_server {
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header Host $http_host;
+    proxy_redirect off;
+    proxy_next_upstream error;
+
+    proxy_pass http://puma_server;
+
+    # track uploads in zone
+    # track_uploads proxied 30s;
+
+    # limit_req zone=one;
+    access_log /home/<%= node['user']['name'] %>/<%= node['app'] %>/shared/log/nginx.access.log;
+    error_log /home/<%= node['user']['name'] %>/<%= node['app'] %>/shared/log/nginx.error.log;
+  }
+
+  # location ^~ /progress {
+  #   upload_progress_json_output;
+  #   report_uploads proxied;
+  # }
+
+  client_max_body_size 4G;
+  keepalive_timeout 10;
+
+  error_page 500 502 504 /500.html;
+  error_page 503 @503;
+
+  location ~ \.(aspx|php|jsp|cgi|assets)$ {
+    return 410;
+  }
+
+  location = /50x.html {
+    root html;
+  }
+
+  location = /404.html {
+    root html;
+  }
+
+  location @503 {
+    error_page 405 = /system/maintenance.html;
+    if (-f $document_root/system/maintenance.html) {
+      rewrite ^(.*)$ /system/maintenance.html break;
+    }
+    rewrite ^(.*)$ /503.html break;
+  }
+
+  if ($request_method !~ ^(GET|HEAD|PUT|PATCH|POST|DELETE|OPTIONS)$ ){
+    return 405;
+  }
+
+  if (-f $document_root/system/maintenance.html) {
+    return 503;
+  }
+
+  location ~ \.(php|html)$ {
+    return 405;
+  }
+}
