@@ -1,1 +1,1 @@
-# opsworks-chef12-cookbooks
+# opswork-recipes
