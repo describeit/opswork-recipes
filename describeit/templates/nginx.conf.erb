@@ -50,8 +50,8 @@ server {
     # track_uploads proxied 30s;
 
     # limit_req zone=one;
-    access_log /home/<%= node['user']['name'] %>/<%= node['app'] %>/shared/log/nginx.access.log;
-    error_log /home/<%= node['user']['name'] %>/<%= node['app'] %>/shared/log/nginx.error.log;
+    access_log /home/<%= node['user']['name'] %>/<%= node['app'] %>/log/nginx.access.log;
+    error_log /home/<%= node['user']['name'] %>/<%= node['app'] %>/log/nginx.error.log;
   }
 
   # location ^~ /progress {
