@@ -1,13 +1,13 @@
 # create shared directory structure for app
-path = "/home/#{node['user']['name']}/#{node['app']}/shared/config"
-execute "mkdir -p #{path}" do
+shared_path = "/home/#{node['user']['name']}/#{node['app']}/shared"
+execute "mkdir -p #{shared_path}" do
   user node['user']['name']
   group node['group']
-  creates path
+  creates shared_path
 end
 
 # create database.yml file
-template "#{path}/database.yml" do
+template "#{shared_path}/config/database.yml" do
   source "database.yml.erb"
   mode 0640
   owner node['user']['name']
@@ -15,17 +15,17 @@ template "#{path}/database.yml" do
 end
 
 # create secrets.yml file
-template "#{path}/secrets.yml" do
+template "#{shared_path}/config/secrets.yml" do
   source "secrets.yml.erb"
   mode 0640
   owner node['user']['name']
   group node['group']
 end
 
-execute "mkdir -p #{path}/log" do
+execute "mkdir -p #{shared_path}/log" do
   user node['user']['name']
   group node['group']
-  command "mkdir -p #{path}/log"
+  command "mkdir -p #{shared_path}/log"
 end
 
 # # set puma config
