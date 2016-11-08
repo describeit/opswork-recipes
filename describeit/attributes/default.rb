@@ -7,9 +7,7 @@ default['nodejs']['version'] = '4.5.0'
 
 default['redis']['version'] = '3.2.3'
 
-default['app'] = 'describeit-sample-app'
-
-default['stage'] = 'development'
+default['app'] = 'describeit'
 
 default['database'] = {}
 
